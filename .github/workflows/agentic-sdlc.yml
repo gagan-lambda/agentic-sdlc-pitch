@@ -47,6 +47,8 @@ jobs:
   kaneai-verify:
     name: "Stage 1 · KaneAI Verification"
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
     env:
       DEMO_MODE: ${{ inputs.demo_mode || 'false' }}
 
@@ -76,8 +78,8 @@ jobs:
           restore-keys: pip-${{ runner.os }}-
 
       # Force-clear Kane cache on full manual runs so fresh verification always runs
-      - name: Clear Kane cache (full_run + workflow_dispatch)
-        if: github.event_name == 'workflow_dispatch' && inputs.full_run == true && env.DEMO_MODE != 'true'
+      - name: Clear Kane cache (on push or full manual run)
+        if: (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.full_run == true)) && env.DEMO_MODE != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
