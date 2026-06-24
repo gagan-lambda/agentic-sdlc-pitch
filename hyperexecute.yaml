@@ -10,14 +10,21 @@ retryOnFailure: true
 maxRetries: 1
 concurrency: 5
 
-# BROWSERS drives pytest parametrize in conftest.py.
-# Each test runs once per browser → 4x coverage per scenario.
+# matrix: each browser gets its own parallel HyperExecute task
+# 7 tests × 4 browsers = 28 fully independent parallel sessions
+matrix:
+  browser:
+    - chrome
+    - firefox
+    - safari
+    - android
+
 env:
   LT_USERNAME:        ${LT_USERNAME}
   LT_ACCESS_KEY:      ${LT_ACCESS_KEY}
   GITHUB_RUN_NUMBER:  ${GITHUB_RUN_NUMBER}
   TARGET_URL:         "https://ecommerce-playground.lambdatest.io/"
-  BROWSERS:           "chrome,firefox,safari,android"
+  BROWSER:            ${matrix.browser}
 
 cacheKey: '{{ checksum "requirements.txt" }}'
 cacheDirectories:
@@ -41,8 +48,8 @@ testDiscovery:
 
 testRunnerCommand: >
   PYTHONPATH=. pytest "$test" -v --tb=short -s
-  --html=reports/report.html
-  --junitxml=reports/junit.xml
+  --html=reports/report_${matrix.browser}.html
+  --junitxml=reports/junit_${matrix.browser}.xml
 
 mergeArtifacts: true
 uploadArtefacts:
