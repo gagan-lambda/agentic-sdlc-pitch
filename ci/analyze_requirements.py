@@ -119,7 +119,7 @@ def main() -> None:
     print(f"[analyze] {len(all_acs)} ACs found — running KaneAI verification in parallel")
     results_map: dict[str, dict] = {}
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
         futures = {executor.submit(run_kane_verification, ac): ac["id"] for ac in all_acs}
         for future in concurrent.futures.as_completed(futures):
             result = future.result()
