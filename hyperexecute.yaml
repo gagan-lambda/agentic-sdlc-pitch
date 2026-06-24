@@ -9,6 +9,7 @@ autosplit: true
 retryOnFailure: true
 maxRetries: 1
 concurrency: 5
+linux_parallelism: 5
 
 # matrix: each browser gets its own parallel HyperExecute task
 # 7 tests × 4 browsers = 28 fully independent parallel sessions
