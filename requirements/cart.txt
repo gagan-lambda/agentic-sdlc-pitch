@@ -3,3 +3,4 @@ Feature: Shopping Cart
 AC-001: User can add a product to the cart from the product detail page and see the cart count update immediately.
 AC-002: User can open the cart dropdown and see all added items with their names and prices.
 AC-003: User can remove an item from the cart and the cart total updates correctly.
+AC-008: User sees a success message after adding a product to the cart.
