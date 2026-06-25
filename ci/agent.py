@@ -217,11 +217,20 @@ def generate_tests(scenarios: list) -> None:
 
 def _validate_syntax(path: str) -> bool:
     try:
-        py_compile.compile(path, doraise=True)
-        print(f"[validate] {path} — syntax OK")
+        source = Path(path).read_text(encoding="utf-8")
+        compile(source, path, "exec")
+        print(f"[validate] {path} — syntax OK", flush=True)
         return True
-    except py_compile.PyCompileError as e:
-        print(f"[validate] SYNTAX ERROR: {e}", file=sys.stderr)
+    except SyntaxError as e:
+        lineno = e.lineno or 0
+        print(f"[validate] SYNTAX ERROR at line {lineno}: {e.msg}", file=sys.stderr, flush=True)
+        try:
+            lines = source.splitlines()
+            for i in range(max(0, lineno - 3), min(len(lines), lineno + 2)):
+                marker = ">>>" if i + 1 == lineno else "   "
+                print(f"  {marker} {i+1:3}: {repr(lines[i])}", file=sys.stderr, flush=True)
+        except Exception:
+            pass
         return False
 
 
@@ -407,6 +416,8 @@ def post_pipeline() -> None:
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 async def main() -> None:
+    # Force line-buffered stdout so stderr and stdout interleave correctly in CI logs
+    sys.stdout.reconfigure(line_buffering=True)
     Path("reports").mkdir(exist_ok=True)
     t0 = time.monotonic()
     print(f"[pipeline] start — FULL_RUN={FULL_RUN}  BUILD={BUILD_NAME}")
