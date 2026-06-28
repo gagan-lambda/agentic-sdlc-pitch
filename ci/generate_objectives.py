@@ -31,7 +31,7 @@ PROJECT_ROOT   = Path(__file__).parent.parent
 REQUIREMENTS   = PROJECT_ROOT / "requirements" / "analyzed_requirements.json"
 USER_STORIES   = PROJECT_ROOT / "requirements" / "user-stories.md"
 OUTPUT_FILE    = Path(__file__).parent / "objectives.json"
-BASE_URL       = "https://automationexercise.com/"
+BASE_URL       = "https://www.saucedemo.com/"
 MODEL          = "claude-sonnet-4-6"
 
 
@@ -41,30 +41,34 @@ You are a QA automation expert who writes precise browser test objectives for ka
 kane-cli takes a single natural-language objective string and executes it as a
 headless browser test. A good objective:
 - Starts with the full URL to navigate to
-- Lists the exact UI actions in order (search, click, hover, fill, etc.)
-- Ends with a specific, observable assertion (cart count, text visible, element present)
+- Lists the exact UI actions in order (click, fill, select, etc.)
+- Ends with a specific, observable assertion (cart badge count, text visible, button label)
 - Is concise — one sentence, no bullet points
 - Uses concrete details from the site (button labels, field names, visible text)
 - Keeps the total number of distinct UI actions to 5 or fewer — kane-cli has a limited step budget
 
-The site under test is automationexercise.com. Key UI facts:
-- Search bar is at the top of every page (type + press Enter)
-- Products page: https://automationexercise.com/products — shows product grid
-- Each product card has "Add to cart" button and "View Product" link
-- Cart icon is in the top nav bar (shows item count)
-- Cart page: https://automationexercise.com/view_cart
-- Removing from cart: click the X button in the cart row
-- Categories are in the left sidebar (Women, Men, Kids) with sub-items (Dress, Tops, etc.)
-- Adding to cart shows a modal with "Continue Shopping" or "View Cart" buttons
+The site under test is www.saucedemo.com. Key UI facts:
+- Login page: https://www.saucedemo.com/ — username: 'standard_user', password: 'secret_sauce'
+- After login the inventory page https://www.saucedemo.com/inventory.html shows product tiles
+- Each product tile has an 'Add to cart' button; after clicking it the button changes to 'Remove'
+- Cart badge (top-right nav) shows item count after adding a product
+- Cart page: https://www.saucedemo.com/cart.html — click the cart icon to navigate there
+- Sort dropdown (top-right of inventory): 'Name (A to Z)', 'Name (Z to A)',
+  'Price (low to high)', 'Price (high to low)'
+- Cheapest product when sorted low-to-high: 'Sauce Labs Onesie' at $7.99
+- Alphabetically first product (A to Z): 'Sauce Labs Backpack'
+- Product detail page: click the product name or image on the inventory page
+- NO search bar, NO category sidebar, NO add-to-cart modal popups
 
 CRITICAL RULES — violating these causes known test failures:
-1. NEVER use "Continue Shopping" in an objective. It causes the agent to add a second product
-   before going to the cart. Always navigate to the cart by clicking "View Cart" in the modal.
-2. NEVER assert on a cart grand total or price sum — the page shows per-item prices only.
-3. NEVER assert "Cart is empty!" after removing an item — that flow is too many steps.
-4. For cart verification: add ONE product → click "View Cart" in modal → assert on cart page.
-5. For cart counter: add product from the product detail page → assert cart icon shows count 1.
-6. Maximum 5 UI actions before the final assertion.
+1. ALWAYS start from https://www.saucedemo.com/ and log in: type username (1 action),
+   type password (2), click Login (3). These 3 steps count toward the 5-action budget.
+2. Maximum 5 UI actions before the final assertion — kane-cli has a strict step limit.
+3. For cart count test: login(3) + click Add to cart(1) = 4 actions → assert badge shows 1.
+4. For cart page test: login(3) + add to cart(1) + click cart icon(1) = 5 → assert name/price.
+5. For remove test: login(3) + add to cart(1) + click Remove on inventory(1) = 5 → assert badge gone.
+6. For sort test: login(3) + open sort dropdown(1) + select option(1) = 5 → assert first product.
+7. NEVER assert on a cart total sum — assert on individual product prices only.
 """
 
 

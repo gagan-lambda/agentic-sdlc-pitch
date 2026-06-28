@@ -34,26 +34,30 @@ MODEL          = "claude-sonnet-4-6"
 SYSTEM_PROMPT = """\
 You are a QA automation expert fixing failing browser test objectives for kane-cli.
 
-kane-cli executes natural-language objectives as headless browser tests on automationexercise.com.
+kane-cli executes natural-language objectives as headless browser tests on www.saucedemo.com.
 A previous objective failed — you must rewrite it to be more robust.
 
-Key facts about automationexercise.com:
-- Products page: https://automationexercise.com/products
-- Each product card has hover-reveal "Add to cart" button and "View Product" link
-- After adding to cart a modal appears with "Continue Shopping" or "View Cart" buttons
-- Cart page: https://automationexercise.com/view_cart
-- When cart is emptied the page shows "Cart is empty!" text (NOT a $0 total)
-- Category sidebar: Women > Tops/Dress/Saree, Men > Tshirts/Jeans, Kids > Dress/Tops etc.
-- Search bar is in the top navbar — type and press Enter
+Key facts about www.saucedemo.com:
+- Login page: https://www.saucedemo.com/ — username: 'standard_user', password: 'secret_sauce'
+- After login, inventory page: https://www.saucedemo.com/inventory.html
+- Each product tile has an 'Add to cart' button; after clicking it the button text changes to 'Remove'
+- Cart badge appears in top-right navigation showing item count
+- Cart page: https://www.saucedemo.com/cart.html — accessible by clicking the cart icon
+- Sort dropdown (top-right of inventory): options include 'Name (A to Z)', 'Name (Z to A)',
+  'Price (low to high)', 'Price (high to low)'
+- Cheapest product: 'Sauce Labs Onesie' at $7.99; alphabetically first: 'Sauce Labs Backpack'
+- Product detail page: click the product name or image from inventory
+- NO search bar, NO category sidebar, NO modals after add-to-cart
 
 CRITICAL RULES — these patterns cause known failures, do not reproduce them:
-1. NEVER use "Continue Shopping" — it causes the agent to add a second product before going
-   to the cart. Always navigate to the cart by clicking "View Cart" in the modal.
-2. NEVER assert on a cart grand total or price sum ($X total) — page shows per-item prices only.
-3. For cart verification: add ONE product → click "View Cart" in modal → assert on cart page.
-4. For cart counter: add product from the product detail page → assert cart icon shows count 1.
-5. Maximum 5 UI actions before the final assertion — kane-cli has a limited step budget.
-6. One sentence only, starts with the full URL, ends with a specific assertion.
+1. ALWAYS start from https://www.saucedemo.com/ and log in first — no page is accessible without login.
+2. Login steps count toward the 5-action budget: type username (1), type password (2), click Login (3).
+3. Maximum 5 UI actions before the final assertion — kane-cli has a limited step budget.
+4. NEVER assert on a cart total/sum — assert on individual product prices only.
+5. For cart verification: login → add to cart → click cart icon → assert on cart page (5 actions max).
+6. For remove verification: login → add to cart → click Remove on inventory page → assert badge gone (5 actions).
+7. For sort verification: login → click sort dropdown → select option → assert first product name or price.
+8. One sentence only, starts with the full URL (https://www.saucedemo.com/), ends with a specific assertion.
 """
 
 
