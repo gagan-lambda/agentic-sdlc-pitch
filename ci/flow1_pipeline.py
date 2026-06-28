@@ -238,6 +238,7 @@ def phase1_run_objectives(objectives=None):
 
     def _run(idx, sc):
         status, session_dir, failure_detail = run_kane(sc)
+        healed = False
         # Inline retry: if failed, ask Claude to rewrite objective and try once more
         if status != "passed" and failure_detail:
             log.warning(f"[{sc['id']}] authoring failed — attempting inline heal + retry")
@@ -248,11 +249,12 @@ def phase1_run_objectives(objectives=None):
                 if s2 == "passed":
                     log.info(f"[{sc['id']}] retry PASSED with healed objective")
                     status, session_dir, failure_detail = s2, sd2, fd2
-                    sc = sc_retry  # carry healed objective into result
+                    sc = sc_retry
+                    healed = True
                 else:
                     log.warning(f"[{sc['id']}] retry also failed")
         return idx, {**sc, "status": status, "session_dir": session_dir,
-                     "failure_detail": failure_detail or ""}
+                     "failure_detail": failure_detail or "", "healed": healed}
 
     with ThreadPoolExecutor(max_workers=2) as ex:
         futures = {ex.submit(_run, i, sc): i for i, sc in enumerate(objs)}
@@ -388,11 +390,17 @@ if __name__ == "__main__":
         log.info(f"Saved last_run.json — Flow 2 can use with --skip-phase1")
 
         # Record TM test case IDs so traceability matrix shows TC links
+        # For healed SCs, session_dir already points to the retry session (not the original failed one)
         kane_results_for_tm = []
         for r in results:
+            if r.get("status") != "passed":
+                continue  # skip SCs that still failed after retry — no valid TM session to link
             sd  = r.get("session_dir")
             sid = Path(sd).name if sd else None
-            kane_results_for_tm.append({"sc_id": r["id"], "testcase_id": get_testcase_id_from_session(sid)})
+            tc_id = get_testcase_id_from_session(sid)
+            src = "self-heal retry" if r.get("healed") else "first pass"
+            log.info(f"[tm] {r['id']} → {tc_id} ({src})")
+            kane_results_for_tm.append({"sc_id": r["id"], "testcase_id": tc_id})
 
         testcase_ids = [r["testcase_id"] for r in kane_results_for_tm if r.get("testcase_id")]
         if testcase_ids:

@@ -272,6 +272,7 @@ def phase1_run_objectives(objectives=None):
 
     def _run(idx, sc):
         status, session_id, failure_detail = run_kane(sc)
+        healed = False
         # Inline retry: if failed, ask Claude to rewrite objective and try once more
         if status != "passed" and failure_detail:
             log.warning(f"[{sc['id']}] authoring failed — attempting inline heal + retry")
@@ -283,6 +284,7 @@ def phase1_run_objectives(objectives=None):
                     log.info(f"[{sc['id']}] retry PASSED with healed objective")
                     status, session_id, failure_detail = s2, sid2, fd2
                     sc = sc_retry
+                    healed = True
                 else:
                     log.warning(f"[{sc['id']}] retry also failed")
         tc_id = get_testcase_id_from_session(session_id)
@@ -293,6 +295,7 @@ def phase1_run_objectives(objectives=None):
             "session_id":     session_id,
             "testcase_id":    tc_id,
             "failure_detail": failure_detail or "",
+            "healed":         healed,
         }
 
     with ThreadPoolExecutor(max_workers=2) as ex:
@@ -480,8 +483,13 @@ if __name__ == "__main__":
     test_cases = phase2_fetch_test_cases(kane_results)
 
     # Persist TM test case IDs for traceability (sc_id → TM ULID + TC number)
+    # Only record passed SCs — for healed SCs, session_id already points to the retry session
     if not args.skip_phase1:
-        record_tm_test_cases_with_sc(kane_results, test_cases)
+        passed_results = [r for r in kane_results if r.get("status") == "passed"]
+        for r in passed_results:
+            src = "self-heal retry" if r.get("healed") else "first pass"
+            log.info(f"[tm] {r['sc_id']} → {r.get('testcase_id')} ({src})")
+        record_tm_test_cases_with_sc(passed_results, test_cases)
 
     job_id, job_link = phase3_trigger_he(test_cases)
 
