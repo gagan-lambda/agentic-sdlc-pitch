@@ -203,7 +203,7 @@ def run_kane(sc):
 
 def phase1_run_objectives(objectives=None):
     from concurrent.futures import ThreadPoolExecutor, as_completed
-    log.phase("PHASE 1 — Running kane-cli objectives (parallel, max_workers=3)")
+    log.phase("PHASE 1 — Running kane-cli objectives (parallel, max_workers=2)")
     objs = list(objectives or SC_OBJECTIVES)
     results = [None] * len(objs)
 
@@ -212,7 +212,7 @@ def phase1_run_objectives(objectives=None):
         return idx, {**sc, "status": status, "session_dir": session_dir,
                      "failure_detail": failure_detail or ""}
 
-    with ThreadPoolExecutor(max_workers=3) as ex:
+    with ThreadPoolExecutor(max_workers=2) as ex:
         futures = {ex.submit(_run, i, sc): i for i, sc in enumerate(objs)}
         for fut in as_completed(futures):
             idx, entry = fut.result()
