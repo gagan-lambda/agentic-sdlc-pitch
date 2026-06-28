@@ -12,8 +12,24 @@ maxRetries: 1
 concurrency: 5
 
 env:
-  TARGET_OS: "LINUX"
   BUILD: "Agentic SDLC | KaneAI Export"
+  # testmuai env — enables AI visual assertions via kaneai-api.lambdatest.com
+  TESTMU_SMART: "1"
+  TESTMU_RUN_TARGET: "cloud"
+  TESTMU_AI_API_HOST: "https://kaneai-api.lambdatest.com/v16-server"
+  AUTOMIND_URL: "https://kaneai-api.lambdatest.com"
+  TESTMUAI_ENV: "prod"
+  TESTMUAI_SOURCE: "hyperexecute"
+  HYE_HUB: "hub.lambdatest.com"
+  KANE_V3: "true"
+  PYTHONUNBUFFERED: "1"
+  # TESTMUAI_BASIC_AUTH injected at runtime by flow1_pipeline.py
+
+runtime:
+  - language: python
+    version: "3.11"
+  - language: node
+    version: "18"
 
 cacheKey: '{{ checksum "requirements-he.txt" }}'
 cacheDirectories:
@@ -21,6 +37,8 @@ cacheDirectories:
 
 pre:
   - pip3 install -r requirements-he.txt --cache-dir CacheDir
+  - pip3 install testmuai-playwright-bindings --cache-dir CacheDir
+  - npm install @testmuai/playwright-bindings
   - playwright install chromium
 
 testDiscovery:

@@ -308,6 +308,31 @@ def _update_he_concurrency(n: int):
     log.info(f"[he] hyperexecute.yaml concurrency → {n}")
 
 
+def _inject_he_testmu_auth():
+    """Inject TESTMUAI_BASIC_AUTH into hyperexecute.yaml env section at runtime.
+
+    testmuai-playwright-bindings reads TESTMUAI_BASIC_AUTH (base64 of user:key)
+    for authenticating vision_query API calls to kaneai-api.lambdatest.com.
+    We compute it from LT_USERNAME/LT_ACCESS_KEY and inject before HE trigger
+    so it never needs to be hardcoded in the committed yaml file.
+    """
+    if not LT_ACCESS_KEY:
+        return
+    import re
+    auth = base64.b64encode(f"{LT_USERNAME}:{LT_ACCESS_KEY}".encode()).decode()
+    text = HE_CONFIG.read_text()
+    if 'TESTMUAI_BASIC_AUTH:' in text:
+        updated = re.sub(r'TESTMUAI_BASIC_AUTH:.*', f'TESTMUAI_BASIC_AUTH: "{auth}"', text)
+    else:
+        updated = text.replace(
+            '  # TESTMUAI_BASIC_AUTH injected at runtime by flow1_pipeline.py',
+            f'  TESTMUAI_BASIC_AUTH: "{auth}"',
+            1,
+        )
+    HE_CONFIG.write_text(updated)
+    log.info("[he] Injected TESTMUAI_BASIC_AUTH into hyperexecute.yaml")
+
+
 def phase3_trigger_he():
     log.phase("PHASE 3 — Triggering HyperExecute")
 
@@ -427,6 +452,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     _update_he_concurrency(len(written))
+    _inject_he_testmu_auth()
     job_id, job_link = phase3_trigger_he()
 
     # Persist HE job
