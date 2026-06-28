@@ -45,12 +45,12 @@ def print_matrix(cache: dict):
     print("=" * w)
 
     # Table
-    print(f"\n{'AC':<8} {'Acceptance Criterion':<42} {'SC':<8} {'TC':<12} {'Result'}")
+    print(f"\n{'AC':<8} {'Scenario':<38} {'SC':<8} {'TC':<12} {'Result'}")
     print("-" * w)
     for r in rows:
-        criterion = r["criterion"][:40]
+        sc_name = r.get("sc_name", r["sc_id"])[:36]
         tc = r.get("tc_internal", "pending")
-        print(f"{r['ac_id']:<8} {criterion:<42} {r['sc_id']:<8} {tc:<12} {r['overall']} {r['status']}")
+        print(f"{r['ac_id']:<8} {sc_name:<38} {r['sc_id']:<8} {tc:<12} {r['overall']} {r['status']}")
 
     # Summary bar
     s = summary
@@ -69,15 +69,22 @@ def print_matrix(cache: dict):
             print(f"    {flow.upper()}: {link}  [{ts2}]")
         print()
 
-    # Failed detail
+    # Failed detail + RCA
     failed = [r for r in rows if r["status"] == "failed"]
     if failed:
-        print("  Failed scenarios:")
+        print("  Failed scenarios — AI Root Cause Analysis:")
         for r in failed:
-            print(f"    {r['sc_id']} ({r['ac_id']}): {r['criterion'][:60]}")
-            if r.get("failure_detail"):
+            sc_name = r.get("sc_name", r["sc_id"])
+            print(f"\n    ❌ {r['sc_id']} ({r['ac_id']}): {sc_name}")
+            print(f"       {r['criterion'][:70]}")
+            if r.get("rca"):
+                for line in r["rca"].splitlines():
+                    print(f"       {line}")
+            elif r.get("failure_detail"):
                 snippet = r["failure_detail"].replace("\n", " ")[:120]
-                print(f"      → {snippet}")
+                print(f"       → {snippet}")
+            if r.get("session_link"):
+                print(f"       Session: {r['session_link']}")
         print()
 
     print("=" * w)

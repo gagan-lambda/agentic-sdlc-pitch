@@ -31,6 +31,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from pipeline_logger import get_logger
 from self_heal import load_history, save_history, heal_objectives
 from traceability import record_he_job, record_tm_test_cases_with_sc, run_traceability
+from rca import run_rca
 
 log = get_logger("flow2")
 
@@ -430,9 +431,13 @@ if __name__ == "__main__":
 
     job_id, job_link = phase3_trigger_he(test_cases)
 
-    # Persist HE job + build traceability matrix
+    # Persist HE job
     if job_id:
         record_he_job("flow2", job_id, job_link)
+        # Trigger + fetch LT AI RCA (job_ids scope — covers all failed tests in run)
+        run_rca(job_id, build_name=BUILD_NAME, log=log)
+
+    # Build live traceability matrix → reports/traceability_matrix.md + demo_cache.json
     run_traceability(log)
 
     log.info("Done — monitor at: https://hyperexecute.lambdatest.com/")

@@ -23,6 +23,7 @@ from transform_kane_export import transform
 from pipeline_logger import get_logger
 from self_heal import load_history, save_history, heal_objectives
 from traceability import record_he_job, run_traceability
+from rca import run_rca, FLOW1_BUILD_NAME
 
 log = get_logger("flow1")
 
@@ -280,7 +281,11 @@ if __name__ == "__main__":
 
     job_id, job_link = phase3_trigger_he()
 
-    # Persist HE job + build live traceability matrix → reports/demo_cache.json
+    # Persist HE job
     if job_id:
         record_he_job("flow1", job_id, job_link)
+        # Trigger + fetch LT AI RCA for failed sessions
+        run_rca(job_id, build_name=FLOW1_BUILD_NAME, log=log)
+
+    # Build live traceability matrix → reports/traceability_matrix.md + demo_cache.json
     run_traceability(log)

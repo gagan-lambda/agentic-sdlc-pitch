@@ -35,6 +35,7 @@ OBJECTIVES_FILE   = CI_DIR / "objectives.json"
 HISTORY_FILE      = CI_DIR / "run_history.json"
 TM_TC_FILE        = CI_DIR / "tm_test_cases.json"
 HE_JOBS_FILE      = CI_DIR / "he_jobs.json"
+RCA_FILE          = CI_DIR / "rca_results.json"
 REQUIREMENTS_FILE = PROJECT_ROOT / "requirements" / "analyzed_requirements.json"
 
 # Outputs
@@ -56,6 +57,7 @@ def build_matrix() -> dict:
     history      = _load(HISTORY_FILE, {})
     tm_tcs       = _load(TM_TC_FILE, {})      # sc_id → {tm_id, title, internal_id}
     he_jobs      = _load(HE_JOBS_FILE, {})     # "flow1"/"flow2" → {job_id, job_link, ts}
+    rca_results  = _load(RCA_FILE, {})         # sc_id → {rca, raw, session_link}
 
     # Build lookup: ac_id → objective entry
     ac_to_sc = {o["ac_id"]: o for o in objectives if "ac_id" in o}
@@ -78,21 +80,25 @@ def build_matrix() -> dict:
         tm_id       = tm.get("tm_id", "—")
         tc_internal = tm.get("internal_id", "—")   # e.g. TC-41514
 
-        # HE job links
-        f1 = he_jobs.get("flow1", {})
-        f2 = he_jobs.get("flow2", {})
+        # RCA (written by rca.py after HE job)
+        rca_entry   = rca_results.get(sc_id, {})
+        rca_text    = rca_entry.get("rca", "")
+        session_link = rca_entry.get("session_link", "")
 
         overall = "✅" if status == "passed" else ("❌" if status == "failed" else "⏭")
         rows.append({
             "ac_id":          ac_id,
             "criterion":      req["description"],
             "sc_id":          sc_id,
+            "sc_name":        obj.get("name", sc_id),
             "objective":      obj.get("objective", ""),
             "tm_id":          tm_id,
             "tc_internal":    tc_internal,
             "status":         status,
             "overall":        overall,
             "failure_detail": failure_detail,
+            "rca":            rca_text,
+            "session_link":   session_link,
             "last_run_ts":    last_run_ts,
             "flow":           flow,
         })
@@ -123,15 +129,17 @@ def write_markdown(matrix: dict) -> str:
     lines = [
         "# Agentic SDLC — Traceability Matrix",
         f"\n_Generated: {ts}_\n",
-        "## Requirement → Test → Result\n",
-        "| AC | Acceptance Criterion | SC | TM Test Case | Status | Result |",
-        "| -- | -------------------- | -- | ------------ | ------ | ------ |",
+        "## Requirement → Scenario → Test Case → Result\n",
+        "| AC | Acceptance Criterion | SC | Scenario Name | TM Test Case | Status | Result | RCA |",
+        "| -- | -------------------- | -- | ------------- | ------------ | ------ | ------ | --- |",
     ]
     for r in rows:
-        tc_str = f"{r['tc_internal']}" if r["tc_internal"] != "—" else "pending"
+        tc_str  = r["tc_internal"] if r["tc_internal"] != "—" else "pending"
+        sc_name = r.get("sc_name", r["sc_id"])
+        rca_snippet = (r["rca"][:60] + "…") if len(r.get("rca", "")) > 60 else r.get("rca", "—")
         lines.append(
-            f"| {r['ac_id']} | {r['criterion'][:70]} | {r['sc_id']} "
-            f"| {tc_str} | {r['status']} | {r['overall']} |"
+            f"| {r['ac_id']} | {r['criterion'][:55]} | {r['sc_id']} "
+            f"| {sc_name[:45]} | {tc_str} | {r['status']} | {r['overall']} | {rca_snippet} |"
         )
 
     lines += [
@@ -154,11 +162,16 @@ def write_markdown(matrix: dict) -> str:
 
     failed_rows = [r for r in rows if r["status"] == "failed"]
     if failed_rows:
-        lines += ["", "## Failed Scenarios"]
+        lines += ["", "## Failed Scenarios — Root Cause Analysis"]
         for r in failed_rows:
-            lines.append(f"\n### {r['sc_id']} — {r['ac_id']}")
-            lines.append(f"**Objective:** {r['objective']}")
-            if r["failure_detail"]:
+            lines.append(f"\n### {r['sc_id']} — {r.get('sc_name', r['sc_id'])}")
+            lines.append(f"**AC:** {r['ac_id']} — {r['criterion']}")
+            lines.append(f"\n**Objective:** {r['objective']}")
+            if r.get("session_link"):
+                lines.append(f"\n**Session:** [{r['session_link']}]({r['session_link']})")
+            if r.get("rca"):
+                lines.append(f"\n**AI RCA (LambdaTest):**\n\n{r['rca']}")
+            elif r.get("failure_detail"):
                 snippet = r["failure_detail"][:300]
                 lines.append(f"\n**Failure detail:**\n```\n{snippet}\n```")
 
