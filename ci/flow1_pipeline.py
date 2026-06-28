@@ -119,8 +119,10 @@ def run_kane(sc):
         log.failure(sc_id, "TIMEOUT", detail=f"Exceeded {KANE_TIMEOUT + 30}s")
         return None, None, f"Timeout after {KANE_TIMEOUT + 30}s"
 
+    # Parse both stdout and stderr for NDJSON events
+    combined = result.stdout + "\n" + result.stderr
     status = session_dir = failure_detail = None
-    for line in result.stdout.splitlines():
+    for line in combined.splitlines():
         try:
             ev = json.loads(line)
         except Exception:
@@ -133,8 +135,11 @@ def run_kane(sc):
     if status == "passed":
         log.success(sc_id)
     else:
-        failure_detail = (result.stderr or "")[:400] or "No stderr captured"
+        # Log raw output to help diagnose CI failures
+        raw = (result.stdout + result.stderr).strip()
+        failure_detail = raw[:500] if raw else f"No output (exit code {result.returncode})"
         log.failure(sc_id, detail=failure_detail)
+        log.info(f"[{sc_id}] exit={result.returncode} stdout={len(result.stdout)}b stderr={len(result.stderr)}b")
 
     return status, session_dir, failure_detail
 
