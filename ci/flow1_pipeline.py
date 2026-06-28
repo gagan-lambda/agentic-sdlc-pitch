@@ -209,10 +209,15 @@ def run_kane(sc):
         if run_end_ev:
             log.info(f"[{sc_id}] run_end payload: {json.dumps(run_end_ev)[:400]}")
 
-        # Log the LAST 1000 chars — errors/run_end always appear at the end
+        # Build failure_detail: run_end summary (narrative) + raw tail
+        # Self-heal uses this to understand what the agent actually did
         raw = (result.stdout + result.stderr).strip()
-        tail = raw[-1000:] if len(raw) > 1000 else raw
-        failure_detail = tail if raw else f"No output (exit code {result.returncode})"
+        tail = raw[-800:] if len(raw) > 800 else raw
+        run_end_summary = run_end_ev.get("summary", "") if run_end_ev else ""
+        if run_end_summary:
+            failure_detail = f"[run summary]: {run_end_summary}\n[raw tail]: {tail}"
+        else:
+            failure_detail = tail if raw else f"No output (exit code {result.returncode})"
         log.failure(sc_id, detail=failure_detail)
 
     return status, session_dir, failure_detail

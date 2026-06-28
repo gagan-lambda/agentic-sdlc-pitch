@@ -45,6 +45,7 @@ headless browser test. A good objective:
 - Ends with a specific, observable assertion (cart count, text visible, element present)
 - Is concise — one sentence, no bullet points
 - Uses concrete details from the site (button labels, field names, visible text)
+- Keeps the total number of distinct UI actions to 5 or fewer — kane-cli has a limited step budget
 
 The site under test is automationexercise.com. Key UI facts:
 - Search bar is at the top of every page (type + press Enter)
@@ -55,6 +56,15 @@ The site under test is automationexercise.com. Key UI facts:
 - Removing from cart: click the X button in the cart row
 - Categories are in the left sidebar (Women, Men, Kids) with sub-items (Dress, Tops, etc.)
 - Adding to cart shows a modal with "Continue Shopping" or "View Cart" buttons
+
+CRITICAL RULES — violating these causes known test failures:
+1. NEVER use "Continue Shopping" in an objective. It causes the agent to add a second product
+   before going to the cart. Always navigate to the cart by clicking "View Cart" in the modal.
+2. NEVER assert on a cart grand total or price sum — the page shows per-item prices only.
+3. NEVER assert "Cart is empty!" after removing an item — that flow is too many steps.
+4. For cart verification: add ONE product → click "View Cart" in modal → assert on cart page.
+5. For cart counter: add product from the product detail page → assert cart icon shows count 1.
+6. Maximum 5 UI actions before the final assertion.
 """
 
 

@@ -46,12 +46,14 @@ Key facts about automationexercise.com:
 - Category sidebar: Women > Tops/Dress/Saree, Men > Tshirts/Jeans, Kids > Dress/Tops etc.
 - Search bar is in the top navbar — type and press Enter
 
-Rules for a good objective:
-- One sentence only
-- Starts with the exact URL to navigate to
-- Uses observable UI text/labels that actually exist on the page
-- Ends with a specific, verifiable assertion using text that appears on screen
-- Avoids assumptions about elements that may not exist (e.g. "$0 total")
+CRITICAL RULES — these patterns cause known failures, do not reproduce them:
+1. NEVER use "Continue Shopping" — it causes the agent to add a second product before going
+   to the cart. Always navigate to the cart by clicking "View Cart" in the modal.
+2. NEVER assert on a cart grand total or price sum ($X total) — page shows per-item prices only.
+3. For cart verification: add ONE product → click "View Cart" in modal → assert on cart page.
+4. For cart counter: add product from the product detail page → assert cart icon shows count 1.
+5. Maximum 5 UI actions before the final assertion — kane-cli has a limited step budget.
+6. One sentence only, starts with the full URL, ends with a specific assertion.
 """
 
 
@@ -118,8 +120,14 @@ def heal_objectives(history: dict, log=None) -> int:
         if sc_id not in obj_map:
             continue
 
-        old_objective    = obj_map[sc_id].get("objective", "")
-        failure_detail   = info.get("failure_detail", "No detail captured")
+        old_objective  = obj_map[sc_id].get("objective", "")
+        failure_detail = info.get("failure_detail", "No detail captured")
+
+        # Extract the run_end narrative summary if it was embedded by run_kane()
+        run_summary = ""
+        if "[run summary]:" in failure_detail:
+            parts = failure_detail.split("\n[raw tail]:", 1)
+            run_summary = parts[0].replace("[run summary]:", "").strip()
 
         if log:
             log.warning(f"[self-heal] {sc_id} failed last run — asking Claude to rewrite objective")
@@ -130,10 +138,14 @@ SC ID: {sc_id}
 Failed objective:
 {old_objective}
 
-Failure detail:
-{failure_detail}
+What kane-cli actually did (run summary):
+{run_summary if run_summary else '(not available)'}
 
-Rewrite the objective to fix the issue. Return ONLY the new objective string — no quotes, no explanation."""
+Raw failure detail:
+{failure_detail[-600:] if len(failure_detail) > 600 else failure_detail}
+
+Rewrite the objective to fix the issue. Apply the critical rules from your system prompt.
+Return ONLY the new objective string — no quotes, no explanation."""
 
         try:
             msg = client.messages.create(
