@@ -34,7 +34,7 @@ log = get_logger("flow1")
 # ── Config ────────────────────────────────────────────────────────────────────
 LT_USERNAME   = os.environ.get("LT_USERNAME", "gagandeepb")
 LT_ACCESS_KEY = os.environ.get("LT_ACCESS_KEY")
-BASE_URL      = "https://automationexercise.com/"
+BASE_URL      = "https://www.saucedemo.com/"
 KANE_TIMEOUT  = 300
 KANE_DIR      = Path("tests/playwright/kane")
 PROJECT_ROOT  = Path(__file__).parent.parent   # ci/ → project root
