@@ -190,16 +190,33 @@ def update_history_from_he(build_name: str, flow: str = "flow2", log=None) -> di
     actual HE pass/fail — so the traceability matrix reflects execution truth,
     not just kane-cli authoring status.
 
-    Called by flow2_pipeline after Phase 3 (HE job completes).
+    Called by flow1/flow2 pipelines after Phase 3 (HE job completes).
+    Retries up to 3 times with 20s delay to allow LT API to index sessions.
     """
     if not LT_ACCESS_KEY:
         return {}
 
-    sessions = fetch_sessions_for_build(build_name, log)
+    # LT Automation API may take a few seconds to index sessions after HE finishes
+    sessions = []
+    for attempt in range(1, 4):
+        sessions = fetch_sessions_for_build(build_name, log)
+        if sessions:
+            break
+        msg = f"[rca] No sessions found for build '{build_name}' (attempt {attempt}/3) — waiting 20s..."
+        print(msg) if not log else log.warning(msg)
+        time.sleep(20)
+
     if not sessions:
-        msg = f"[rca] No sessions found for build '{build_name}' — run_history unchanged"
+        msg = f"[rca] No sessions found for build '{build_name}' after retries — run_history unchanged"
         print(msg) if not log else log.warning(msg)
         return {}
+
+    # Log what the API returned so we can diagnose mapping failures
+    _log = lambda m: print(m) if not log else log.info(m)
+    _log(f"[rca] Found {len(sessions)} session(s) for build '{build_name}'")
+    for s in sessions:
+        sc_id = _session_to_sc_id(s["name"])
+        _log(f"[rca]   session '{s['name']}' → sc_id='{sc_id}' status={s['status']}")
 
     history = json.loads(HISTORY_FILE.read_text()) if HISTORY_FILE.exists() else {}
 
@@ -219,6 +236,9 @@ def update_history_from_he(build_name: str, flow: str = "flow2", log=None) -> di
         HISTORY_FILE.write_text(json.dumps(history, indent=2))
         msg = f"[rca] Updated run_history with HE results: {updated}"
         print(msg) if not log else log.info(msg)
+    else:
+        msg = f"[rca] Sessions found but no SC IDs mapped — check session names above"
+        print(msg) if not log else log.warning(msg)
 
     return updated
 
