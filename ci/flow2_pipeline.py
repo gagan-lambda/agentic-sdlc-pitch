@@ -62,46 +62,52 @@ else:
     print("[config] Using hardcoded objectives (run ci/generate_objectives.py to generate from requirements)")
     SC_OBJECTIVES = [
         {
-            "id":        "SC-001",
+            "id":   "SC-001",
+            "name": "SC-001: Add to cart changes button to Remove",
             "objective": (
-                "Go to https://automationexercise.com/, search for 'Blue Top', "
-                "click Add to Cart on the first result, and verify the cart count increases"
+                "Navigate to https://www.saucedemo.com/, type 'standard_user' into the username input, "
+                "type 'secret_sauce' into the password input, click the Login button, "
+                "click the button with text 'Add to cart' that is directly below the price '$29.99' "
+                "under the 'Sauce Labs Backpack' product name, and assert that the same button now reads 'Remove'."
             ),
         },
         {
-            "id":        "SC-002",
+            "id":   "SC-002",
+            "name": "SC-002: Cart page shows item name and price",
             "objective": (
-                "Go to https://automationexercise.com/, hover over a product and click Add to Cart, "
-                "then click the cart icon and verify it shows the item name and price"
+                "Navigate to https://www.saucedemo.com/, type 'standard_user' into the username input, "
+                "type 'secret_sauce' into the password input, click the Login button, "
+                "click the button with text 'Add to cart' below the price '$29.99' under the 'Sauce Labs Backpack' product name, "
+                "then navigate to https://www.saucedemo.com/cart.html and assert that the text 'Sauce Labs Backpack' is visible."
             ),
         },
         {
-            "id":        "SC-003",
+            "id":   "SC-003",
+            "name": "SC-003: Remove item restores Add to cart button",
             "objective": (
-                "Go to https://automationexercise.com/, add an item to the cart, "
-                "navigate to the cart page, remove the item using the X button, "
-                "and verify the cart is now empty"
+                "Navigate to https://www.saucedemo.com/, type 'standard_user' into the username input, "
+                "type 'secret_sauce' into the password input, click the Login button, "
+                "click the button with text 'Add to cart' below the price '$29.99' under the 'Sauce Labs Backpack' product name, "
+                "click the 'Remove' button that replaced it, and assert the button now reads 'Add to cart'."
             ),
         },
         {
-            "id":        "SC-004",
+            "id":   "SC-004",
+            "name": "SC-004: Sort by price shows cheapest product first",
             "objective": (
-                "Go to https://automationexercise.com/, type 'jeans' in the search bar and submit, "
-                "and verify relevant product results appear on the search results page"
+                "Navigate to https://www.saucedemo.com/, type 'standard_user' into the username input, "
+                "type 'secret_sauce' into the password input, click the Login button, "
+                "click the sort dropdown and select 'Price (low to high)', "
+                "and assert that the first product tile shows the price $7.99."
             ),
         },
         {
-            "id":        "SC-005",
+            "id":   "SC-005",
+            "name": "SC-005: Catalog page loads with product listings",
             "objective": (
-                "Go to https://automationexercise.com/products, browse the product catalog, "
-                "and verify product tiles display with names and prices"
-            ),
-        },
-        {
-            "id":        "SC-006",
-            "objective": (
-                "Go to https://automationexercise.com/products, click on the View Product link for the first product, "
-                "and verify the product detail page shows the name, image, and price"
+                "Navigate to https://www.saucedemo.com/, type 'standard_user' into the username input, "
+                "type 'secret_sauce' into the password input, click the Login button, "
+                "and assert that the text 'Sauce Labs Backpack' is visible on the inventory page."
             ),
         },
     ]

@@ -100,6 +100,8 @@ def main():
                         help="Print objectives without writing to file")
     parser.add_argument("--ids", nargs="+",
                         help="Only generate for specific AC IDs e.g. AC-001 AC-004")
+    parser.add_argument("--limit", type=int, default=5,
+                        help="Max number of objectives to generate (default: 5)")
     args = parser.parse_args()
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -118,6 +120,9 @@ def main():
         if not requirements:
             print(f"ERROR: none of {args.ids} found in requirements", file=sys.stderr)
             sys.exit(1)
+
+    if not args.ids and args.limit:
+        requirements = requirements[:args.limit]
 
     client = anthropic.Anthropic(api_key=api_key)
 
