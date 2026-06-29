@@ -14,6 +14,7 @@ Usage:
 import base64
 import json
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -171,14 +172,26 @@ def run_kane(sc):
         "--max-steps", "20",
         "--timeout", str(KANE_TIMEOUT),
     ]
+    # Use Popen + process group so we can kill the entire tree (kane-cli spawns v16-runner children)
+    deadline = KANE_TIMEOUT + 60
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=KANE_TIMEOUT + 60)
-    except subprocess.TimeoutExpired:
-        log.failure(sc_id, "TIMEOUT", detail=f"Exceeded {KANE_TIMEOUT + 60}s")
-        return None, None, f"Timeout after {KANE_TIMEOUT + 60}s"
+        proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, start_new_session=True,
+        )
+        try:
+            stdout, stderr = proc.communicate(timeout=deadline)
+        except subprocess.TimeoutExpired:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            proc.communicate()
+            log.failure(sc_id, "TIMEOUT", detail=f"Exceeded {deadline}s")
+            return None, None, f"Timeout after {deadline}s"
+    except Exception as e:
+        log.failure(sc_id, "ERROR", detail=str(e))
+        return None, None, str(e)
 
     # Parse both stdout and stderr for NDJSON events
-    combined = result.stdout + "\n" + result.stderr
+    combined = stdout + "\n" + stderr
     status = session_dir = failure_detail = None
     for line in combined.splitlines():
         try:
@@ -212,14 +225,14 @@ def run_kane(sc):
             except Exception:
                 continue
 
-        log.info(f"[{sc_id}] exit={result.returncode} stdout={len(result.stdout)}b stderr={len(result.stderr)}b")
+        log.info(f"[{sc_id}] exit={proc.returncode} stdout={len(stdout)}b stderr={len(stderr)}b")
         log.info(f"[{sc_id}] events: {events_seen}")
         if run_end_ev:
             log.info(f"[{sc_id}] run_end payload: {json.dumps(run_end_ev)[:400]}")
 
         # Build failure_detail: run_end summary (narrative) + raw tail
         # Self-heal uses this to understand what the agent actually did
-        raw = (result.stdout + result.stderr).strip()
+        raw = (stdout + stderr).strip()
         tail = raw[-800:] if len(raw) > 800 else raw
         run_end_summary = run_end_ev.get("summary", "") if run_end_ev else ""
         if run_end_summary:
