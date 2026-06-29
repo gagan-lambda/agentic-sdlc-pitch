@@ -118,9 +118,23 @@ jobs:
             URL="https://docs.google.com/document/d/${DOC_ID}/export?format=txt"
             echo "→ Google Docs export URL"
 
+          # ── Google Drive FOLDER (not supported — need a file link) ───────
+          elif echo "$URL" | grep -qE "drive\.google\.com.*(folders|drive/u)"; then
+            echo "ERROR: You provided a Google Drive FOLDER link."
+            echo "Please share a specific FILE instead:"
+            echo "  1. Open the file in Google Drive"
+            echo "  2. Right-click → Share → 'Anyone with the link'"
+            echo "  3. Copy the file link (contains /file/d/ or docs.google.com/document/d/)"
+            exit 1
+
           # ── Google Drive file (drive.google.com/file/d/<ID>) ──────────────
           elif echo "$URL" | grep -q "drive.google.com"; then
             FILE_ID=$(echo "$URL" | grep -oP '(?<=/d/)[^/?]+')
+            if [ -z "$FILE_ID" ]; then
+              echo "ERROR: Could not extract file ID from Google Drive URL: $URL"
+              echo "Expected format: https://drive.google.com/file/d/FILE_ID/view"
+              exit 1
+            fi
             # Use export download — handles large files by bypassing virus-scan warning
             URL="https://drive.google.com/uc?export=download&id=${FILE_ID}&confirm=t"
             echo "→ Google Drive direct download"
