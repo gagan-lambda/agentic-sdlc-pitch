@@ -3,22 +3,19 @@
     "id": "SC-001",
     "ac_id": "AC-001",
     "name": "SC-001: Add to cart changes button to Remove",
-    "objective": "Login to https://www.saucedemo.com/ with username standard_user and password secret_sauce, then add the Sauce Labs Backpack to the cart and verify the cart badge shows 1 item.",
-    "healed_from": "Login to https://www.saucedemo.com/ as standard_user with password secret_sauce, add Sauce Labs Backpack to the cart, and verify the button changes to 'Remove'."
+    "objective": "Login to https://www.saucedemo.com/ as standard_user with password secret_sauce, add Sauce Labs Backpack to the cart, and verify the button label changes to 'Remove'."
   },
   {
     "id": "SC-002",
     "ac_id": "AC-002",
     "name": "SC-002: Cart page shows item name and price",
-    "objective": "Login to https://www.saucedemo.com/ with username standard_user and password secret_sauce, add the Sauce Labs Backpack to the cart and verify the cart badge shows 1 item.",
-    "healed_from": "Login to https://www.saucedemo.com/ as standard_user with password secret_sauce, add Sauce Labs Backpack to the cart, go to the cart page, and verify Sauce Labs Backpack is listed."
+    "objective": "Login to https://www.saucedemo.com/ as standard_user with password secret_sauce, add Sauce Labs Backpack to the cart, navigate to the cart page, and verify 'Sauce Labs Backpack' is listed."
   },
   {
     "id": "SC-003",
     "ac_id": "AC-003",
     "name": "SC-003: Remove item restores Add to cart button",
-    "objective": "Login to https://www.saucedemo.com/ as standard_user with password secret_sauce, add Sauce Labs Backpack to the cart and then remove it, and verify the Remove button changes back to Add to Cart.",
-    "healed_from": "Login to https://www.saucedemo.com/ as standard_user with password secret_sauce, add Sauce Labs Backpack to the cart, remove it, and verify the button returns to 'Add to cart'."
+    "objective": "Login to https://www.saucedemo.com/ as standard_user with password secret_sauce, add Sauce Labs Backpack to the cart and click Remove, and verify the button label is 'Add to cart'."
   },
   {
     "id": "SC-004",
