@@ -13,11 +13,29 @@ All of the above are PRESERVED — we only patch testmu.configure() with the
 correct build name and SC name. testmuai-playwright-bindings handles browser
 connection to LT cloud via TESTMU_RUN_TARGET=cloud + HYE_HUB env vars.
 """
-import re
 import sys
 
-# Match the full testmu.configure(...) call — may span multiple lines
-_CONFIGURE_RE = re.compile(r'testmu\.configure\(.*?\)', re.DOTALL)
+
+def _find_configure_span(code: str):
+    """
+    Find the start and end indices of the testmu.configure(...) call.
+    Uses balanced parenthesis counting so nested parens don't confuse it.
+    Returns (start, end) or (None, None) if not found.
+    """
+    marker = 'testmu.configure('
+    start = code.find(marker)
+    if start == -1:
+        return None, None
+    paren_start = start + len(marker) - 1  # index of opening '('
+    depth = 0
+    for i in range(paren_start, len(code)):
+        if code[i] == '(':
+            depth += 1
+        elif code[i] == ')':
+            depth -= 1
+            if depth == 0:
+                return start, i + 1  # end is exclusive
+    return None, None
 
 
 def transform(kane_code: str, sc_id: str, sc_name: str) -> str:
@@ -38,7 +56,11 @@ def transform(kane_code: str, sc_id: str, sc_name: str) -> str:
         ")"
     )
 
-    code = _CONFIGURE_RE.sub(new_configure, kane_code, count=1)
+    start, end = _find_configure_span(kane_code)
+    if start is not None:
+        code = kane_code[:start] + new_configure + kane_code[end:]
+    else:
+        code = kane_code  # no configure found, leave unchanged
 
     # Ensure `import os` is present (needed for os.environ.get in configure)
     if 'import os' not in code:

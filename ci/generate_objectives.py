@@ -110,15 +110,15 @@ def run_kane_generate(prompt: str, limit: int, files_arg=None) -> list[dict]:
         elif ev.get("type") == "generate_done":
             done_ev = ev
 
-    if not snapshot:
-        print("ERROR: no generate_snapshot event received. Raw output:", file=sys.stderr)
-        print(combined[-2000:], file=sys.stderr)
-        sys.exit(1)
-
     if done_ev:
         status = done_ev.get("status", "?")
         print(f"generate_done: status={status}, scenarios={done_ev.get('scenario_count')}, "
               f"cases={done_ev.get('case_count')}")
+
+    if not snapshot:
+        print("[generate] WARNING: no generate_snapshot event — kane-cli generate produced no output",
+              file=sys.stderr)
+        return []
 
     return extract_objectives(snapshot)
 
@@ -187,7 +187,12 @@ def main():
     objectives = run_kane_generate(prompt, args.limit, reqs_path)
 
     if not objectives:
-        print("ERROR: no objectives extracted from generation output.", file=sys.stderr)
+        if OUTPUT_FILE.exists():
+            print(f"[generate] WARNING: kane-cli generate returned 0 scenarios — "
+                  f"using existing {OUTPUT_FILE.name} as fallback")
+            return  # keep existing objectives.json, exit cleanly
+        print("ERROR: no objectives extracted and no existing objectives.json to fall back to.",
+              file=sys.stderr)
         sys.exit(1)
 
     print(f"\nGenerated {len(objectives)} objectives:")

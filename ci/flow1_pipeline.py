@@ -24,7 +24,7 @@ from pathlib import Path
 
 # Add ci/ to path for local import
 sys.path.insert(0, str(Path(__file__).parent))
-from transform_kane_export import transform
+from to_lt_playwright import to_lt_playwright
 from pipeline_logger import get_logger
 from self_heal import load_history, save_history, heal_objectives, heal_single_objective
 from traceability import record_he_job, run_traceability, record_tm_test_cases_with_sc
@@ -38,7 +38,31 @@ LT_ACCESS_KEY = os.environ.get("LT_ACCESS_KEY")
 BASE_URL      = "https://www.saucedemo.com/"
 KANE_TIMEOUT  = 300
 KANE_DIR      = Path("tests/playwright/kane")
+CACHE_FILE    = Path(__file__).parent / "authoring_cache.json"
 PROJECT_ROOT  = Path(__file__).parent.parent   # ci/ → project root
+
+
+def _load_cache() -> dict:
+    if CACHE_FILE.exists():
+        try:
+            return json.loads(CACHE_FILE.read_text())
+        except Exception:
+            pass
+    return {}
+
+
+def _save_cache(cache: dict):
+    CACHE_FILE.write_text(json.dumps(cache, indent=2))
+
+
+def _is_cached(sc_id: str, cache: dict) -> bool:
+    """Return True if a valid transformed test.py already exists for this SC."""
+    test_py = KANE_DIR / sc_id / "test.py"
+    if not test_py.exists():
+        return False
+    if "testmu.configure" not in test_py.read_text():
+        return False
+    return sc_id in cache
 HE_BINARY     = PROJECT_ROOT / "hyperexecute"
 HE_CONFIG     = PROJECT_ROOT / "hyperexecute.yaml"
 
@@ -173,23 +197,51 @@ def run_kane(sc):
         "--timeout", str(KANE_TIMEOUT),
     ]
     # Use Popen + process group so we can kill the entire tree (kane-cli spawns v16-runner children)
+    # Read stdout line-by-line so progress events stream to logs in real time.
     deadline = KANE_TIMEOUT + 60
+    stdout_lines = []
     try:
         proc = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, start_new_session=True,
         )
+        import threading, queue as _queue
+        _done = threading.Event()
+
+        def _read_stdout():
+            for line in proc.stdout:
+                stdout_lines.append(line)
+                try:
+                    ev = json.loads(line.strip())
+                    t = ev.get("type", "")
+                    if t == "bifurcation":
+                        log.info(f"[{sc_id}] → authoring started")
+                    elif t not in ("update_available", "skill_update_available", "recording_state"):
+                        remark = ev.get("remark") or ev.get("status") or ev.get("pct")
+                        if remark:
+                            log.info(f"[{sc_id}] {t}: {str(remark)[:120]}")
+                except Exception:
+                    pass
+            _done.set()
+
+        t = threading.Thread(target=_read_stdout, daemon=True)
+        t.start()
         try:
-            stdout, stderr = proc.communicate(timeout=deadline)
+            t.join(timeout=deadline)
+            if not _done.is_set():
+                raise subprocess.TimeoutExpired(cmd, deadline)
+            proc.wait()
         except subprocess.TimeoutExpired:
             os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
             proc.communicate()
             log.failure(sc_id, "TIMEOUT", detail=f"Exceeded {deadline}s")
             return None, None, f"Timeout after {deadline}s"
+        stderr = proc.stderr.read()
     except Exception as e:
         log.failure(sc_id, "ERROR", detail=str(e))
         return None, None, str(e)
 
+    stdout = "".join(stdout_lines)
     # Parse both stdout and stderr for NDJSON events
     combined = stdout + "\n" + stderr
     status = session_dir = failure_detail = None
@@ -238,7 +290,7 @@ def run_kane(sc):
         if run_end_summary:
             failure_detail = f"[run summary]: {run_end_summary}\n[raw tail]: {tail}"
         else:
-            failure_detail = tail if raw else f"No output (exit code {result.returncode})"
+            failure_detail = tail if raw else f"No output (exit code {proc.returncode})"
         log.failure(sc_id, detail=failure_detail)
 
     return status, session_dir, failure_detail
@@ -249,8 +301,17 @@ def phase1_run_objectives(objectives=None):
     log.phase("PHASE 1 — Running kane-cli objectives (parallel, max_workers=2)")
     objs = list(objectives or SC_OBJECTIVES)
     results = [None] * len(objs)
+    cache = _load_cache()
 
     def _run(idx, sc):
+        sc_id = sc["id"]
+        # ── Authoring cache: skip kane-cli if valid test.py already exists ─────
+        if _is_cached(sc_id, cache):
+            cached_session = cache[sc_id].get("session_dir", "")
+            log.info(f"[{sc_id}] CACHED — skipping authoring (test.py already exists)")
+            return idx, {**sc, "status": "passed", "session_dir": cached_session,
+                         "failure_detail": "", "healed": False}
+
         status, session_dir, failure_detail = run_kane(sc)
         healed = False
         # Inline retry: if failed, ask Claude to rewrite objective and try once more
@@ -267,6 +328,10 @@ def phase1_run_objectives(objectives=None):
                     healed = True
                 else:
                     log.warning(f"[{sc['id']}] retry also failed")
+        # ── Save to cache if authoring passed ─────────────────────────────────
+        if status == "passed" and session_dir:
+            cache[sc_id] = {"session_dir": session_dir, "objective": sc.get("objective", "")}
+            _save_cache(cache)
         return idx, {**sc, "status": status, "session_dir": session_dir,
                      "failure_detail": failure_detail or "", "healed": healed}
 
@@ -300,7 +365,7 @@ def phase2_transform_and_write(results):
             continue
 
         kane_code   = export_file.read_text(encoding="utf-8")
-        transformed = transform(kane_code, sc_id, r["name"])
+        transformed = to_lt_playwright(kane_code, sc_id, r["name"])
         dest_dir    = KANE_DIR / sc_id
         dest_dir.mkdir(parents=True, exist_ok=True)
         dest_file   = dest_dir / "test.py"
