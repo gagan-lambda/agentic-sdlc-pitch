@@ -16,6 +16,7 @@ on:
       run_id:
         description: "Flow 2 run ID to pull results from (leave blank for latest successful run)"
         required: false
+        default: "28438427014"
 
 env:
   PYTHON_VERSION: "3.11"

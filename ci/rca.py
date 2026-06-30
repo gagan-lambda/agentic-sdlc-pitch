@@ -274,7 +274,7 @@ def update_history_from_he(build_name: str, flow: str = "flow2", log=None, tc_to
         sc_id = _sc_id_for(s)
         if not sc_id:
             continue
-        he_status = "passed" if s["status"] in ("passed", "completed") else "failed"
+        he_status = "passed" if s["status"] == "passed" else "failed"
         prev = best.get(sc_id)
         if prev is None or (prev["_status"] != "passed" and he_status == "passed"):
             best[sc_id] = {**s, "_status": he_status}
@@ -450,7 +450,7 @@ def run_rca(job_id: str, build_name: str = FLOW1_BUILD_NAME, log=None, tc_to_sc:
             sc_id = _sc_id_for(s)
             if not sc_id:
                 continue
-            st = "passed" if s["status"] in ("passed", "completed") else "failed"
+            st = "passed" if s["status"] == "passed" else "failed"
             if sc_id not in _best or (_best[sc_id]["_st"] != "passed" and st == "passed"):
                 _best[sc_id] = {**s, "_st": st}
         failed_sc_ids = [sid for sid, sv in _best.items() if sv["_st"] in ("failed", "error")]
