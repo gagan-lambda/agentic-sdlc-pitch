@@ -199,6 +199,8 @@ jobs:
           ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_RUN_NUMBER:  ${{ github.run_number }}
           REQUIREMENTS_URL:   ${{ inputs.requirements_url }}
+          TM_PROJECT_ID:      ${{ vars.TM_PROJECT_ID }}
+          TM_ENVIRONMENT_ID:  ${{ vars.TM_ENVIRONMENT_ID }}
         run: python3 -u ci/flow2_pipeline.py
 
       - name: Write GitHub Step Summary

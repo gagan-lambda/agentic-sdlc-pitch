@@ -47,8 +47,8 @@ AUTH = "Basic " + base64.b64encode(f"{LT_USERNAME}:{LT_ACCESS_KEY}".encode()).de
 # ── Config ────────────────────────────────────────────────────────────────────
 TM_API        = "https://test-manager-api.lambdatest.com/api/v1"
 HE_API        = "https://test-manager-api.lambdatest.com/api/atm/v1/hyperexecute"
-PROJECT_ID    = "01KVXJ82AKT83GWJNFZTQVMNRQ"   # kane-agentic
-ENVIRONMENT_ID = 282603                           # Windows Config — Win10, Firefox 150, desktop web
+PROJECT_ID     = os.environ.get("TM_PROJECT_ID", "01KVXJ82AKT83GWJNFZTQVMNRQ")
+ENVIRONMENT_ID = int(os.environ.get("TM_ENVIRONMENT_ID", "282603"))
 # BASE_URL: read from analyzed_requirements.json if available, else extract from first objective
 def _resolve_base_url() -> str:
     analyzed = Path(__file__).parent.parent / "requirements" / "analyzed_requirements.json"
