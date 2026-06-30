@@ -618,13 +618,20 @@ if __name__ == "__main__":
     if not args.skip_phase1:
         history = load_history()
         if history:
-            # Skip heal if objectives are for a different app than last run
-            # (new requirements URL was provided — old history is irrelevant)
-            current_ids = {o["id"] for o in SC_OBJECTIVES}
-            history_ids = set(history.keys())
-            overlap = current_ids & history_ids
-            if not overlap:
-                log.info("[self-heal] New objectives detected — skipping cross-run heal (different app or fresh requirements)")
+            # Skip heal if history is from a different app's run.
+            # Check 1: SC IDs must overlap.
+            # Check 2: At least one objective text in history must match current objectives
+            #          (prevents custom URL run history from corrupting saucedemo objectives).
+            current_ids  = {o["id"] for o in SC_OBJECTIVES}
+            current_objs = {o["id"]: o.get("objective", "") for o in SC_OBJECTIVES}
+            history_ids  = set(history.keys())
+            overlap      = current_ids & history_ids
+            obj_match    = any(
+                history[sc].get("objective", "") == current_objs.get(sc, "NOMATCH")
+                for sc in overlap
+            )
+            if not overlap or not obj_match:
+                log.info("[self-heal] History is from a different app/run — skipping cross-run heal")
             else:
                 healed = heal_objectives(history, log)
                 if healed:

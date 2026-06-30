@@ -93,10 +93,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          RUN_ID=$(gh run list --workflow=flow2.yml --branch=main --status=success --limit=1 --json databaseId -q '.[0].databaseId' 2>/dev/null || echo "")
+          # Separate artifact namespaces: default runs never restore from custom URL runs and vice versa.
+          # This keeps objectives, history, and healing completely isolated between the two flows.
+          if [ -n "${{ inputs.requirements_url }}" ]; then
+            ARTIFACT_PATTERN="flow2-results-custom-*"
+            echo "Custom URL run — restoring from custom artifacts only"
+          else
+            ARTIFACT_PATTERN="flow2-results-default-*"
+            echo "Default run — restoring from default artifacts only"
+          fi
+          RUN_ID=$(gh run list --workflow=flow2.yml --branch=main --status=success --limit=5 --json databaseId,name -q \
+            "[.[] | select(.name | startswith(\"Agentic SDLC\"))][0].databaseId" 2>/dev/null || echo "")
           if [ -n "$RUN_ID" ]; then
-            echo "Restoring run_history.json from run $RUN_ID"
-            gh run download "$RUN_ID" --name "flow2-results-*" --dir /tmp/prev-artifacts 2>/dev/null || true
+            echo "Restoring from run $RUN_ID (pattern: $ARTIFACT_PATTERN)"
+            gh run download "$RUN_ID" --name "$ARTIFACT_PATTERN" --dir /tmp/prev-artifacts 2>/dev/null || true
             HIST=$(find /tmp/prev-artifacts -name "run_history.json" | head -1)
             [ -n "$HIST" ] && cp "$HIST" ci/run_history.json && echo "Restored run_history.json"
             REQS=$(find /tmp/prev-artifacts -name "analyzed_requirements.json" | head -1)
@@ -226,7 +236,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: flow2-results-${{ github.run_number }}
+          name: ${{ inputs.requirements_url != '' && format('flow2-results-custom-{0}', github.run_number) || format('flow2-results-default-{0}', github.run_number) }}
           path: |
             reports/
             ci/objectives.json
