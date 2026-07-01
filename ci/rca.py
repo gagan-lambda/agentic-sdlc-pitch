@@ -175,12 +175,14 @@ def fetch_sessions_for_build(build_name: str, log=None) -> list:
     return result
 
 
-def _fetch_sessions_by_tc_ids(tc_internal_ids: set) -> list:
+def _fetch_sessions_by_tc_ids(tc_internal_ids: set, start_time: str = None) -> list:
     """
-    Fetch recent sessions (no build filter) and match by TM internal TC IDs.
+    Fetch recent sessions and match by TM internal TC IDs.
     e.g. tc_internal_ids = {"TC-41961", "TC-41962"} matches "Web || gagandeepb || TC-41961".
-    Used when TM-triggered HE sessions don't share a common build name.
-    Returns list of {session_id, name, status, session_link, _tc_id}.
+
+    start_time: ISO timestamp (e.g. "2026-07-01T14:29:00") — only sessions created at or
+    after this time are included. Prevents sessions from previous runs with the same reused
+    TC IDs from flooding results and corrupting deduplication/status.
     """
     if not tc_internal_ids or not LT_ACCESS_KEY:
         return []
@@ -193,14 +195,20 @@ def _fetch_sessions_by_tc_ids(tc_internal_ids: set) -> list:
     for s in sessions_raw:
         name = s.get("name", "") or s.get("test_name", "")
         m = re.search(r'TC-\d+', name)
-        if m and m.group(0) in tc_internal_ids:
-            result.append({
-                "session_id":   s.get("session_id", "") or s.get("id", ""),
-                "name":         name,
-                "status":       s.get("status_ind", s.get("status", "")),
-                "session_link": s.get("session_url", "") or s.get("public_url", ""),
-                "_tc_id":       m.group(0),
-            })
+        if not (m and m.group(0) in tc_internal_ids):
+            continue
+        # Filter by start_time to exclude sessions from previous runs with the same TC IDs
+        if start_time:
+            created = s.get("create_timestamp") or s.get("created_at") or s.get("start_timestamp", "")
+            if created and created < start_time:
+                continue
+        result.append({
+            "session_id":   s.get("session_id", "") or s.get("id", ""),
+            "name":         name,
+            "status":       s.get("status_ind", s.get("status", "")),
+            "session_link": s.get("session_url", "") or s.get("public_url", ""),
+            "_tc_id":       m.group(0),
+        })
     return result
 
 
@@ -262,13 +270,16 @@ def _summarize(raw: str, sc_id: str) -> str:
 
 HISTORY_FILE = CI_DIR / "run_history.json"
 
-def update_history_from_he(build_name: str, flow: str = "flow2", log=None, tc_to_sc: dict = None) -> dict:
+def update_history_from_he(build_name: str, flow: str = "flow2", log=None, tc_to_sc: dict = None, start_time: str = None) -> dict:
     """
     Fetch HE session results and overwrite run_history.json with actual HE pass/fail.
 
     tc_to_sc: {"TC-41961": "SC-001", ...} — when provided, sessions are fetched by TC
               internal IDs (TM-triggered HE doesn't share a common build name).
               Falls back to build_name query when tc_to_sc is None.
+    start_time: ISO timestamp — only sessions created at/after this time are counted.
+                Prevents sessions from previous runs with the same reused TC IDs from
+                corrupting results.
     """
     if not LT_ACCESS_KEY:
         return {}
@@ -278,7 +289,7 @@ def update_history_from_he(build_name: str, flow: str = "flow2", log=None, tc_to
     if tc_to_sc:
         # TM-triggered HE: each test case has its own build UUID — match by TC internal IDs
         tc_internal_ids = set(tc_to_sc.keys())
-        sessions = _fetch_sessions_by_tc_ids(tc_internal_ids)
+        sessions = _fetch_sessions_by_tc_ids(tc_internal_ids, start_time=start_time)
         if not sessions:
             msg = f"[rca] No sessions found by TC IDs {tc_internal_ids} — run_history unchanged"
             print(msg) if not log else log.warning(msg)
@@ -446,7 +457,7 @@ def _claude_rca_from_history(sc_ids: list, log=None) -> dict:
 
     return results
 
-def run_rca(job_id: str, build_name: str = FLOW1_BUILD_NAME, log=None, tc_to_sc: dict = None) -> dict:
+def run_rca(job_id: str, build_name: str = FLOW1_BUILD_NAME, log=None, tc_to_sc: dict = None, start_time: str = None) -> dict:
     """
     Full RCA pipeline for one HE job.
     Returns {sc_id: {rca, session_link, session_id}} and saves ci/rca_results.json.
@@ -493,7 +504,7 @@ def run_rca(job_id: str, build_name: str = FLOW1_BUILD_NAME, log=None, tc_to_sc:
     # Step 2: Fetch sessions → build session_id → sc_id mapping
     if tc_to_sc:
         tc_internal_ids = set(tc_to_sc.keys())
-        sessions = _fetch_sessions_by_tc_ids(tc_internal_ids)
+        sessions = _fetch_sessions_by_tc_ids(tc_internal_ids, start_time=start_time)
         if not sessions:
             _log(f"[rca] No sessions found by TC IDs {tc_internal_ids}")
         def _sc_id_for(s):
