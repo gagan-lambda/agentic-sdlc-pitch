@@ -585,9 +585,13 @@ def poll_he_job(job_id: str, tc_internal_ids: set, timeout: int = 1800, log=None
         if sessions:
             statuses = {s["status"] for s in sessions}
             pending  = statuses - FINAL
+            seen_tcs = {s.get("_tc_id") for s in sessions}
+            missing_tcs = tc_internal_ids - seen_tcs
             _log(f"[he-poll] {len(sessions)} session(s) — statuses: {dict((s, sum(1 for x in sessions if x['status']==s)) for s in statuses)}")
-            if not pending:
-                _log(f"[he-poll] All sessions in final state after {elapsed}s")
+            if missing_tcs:
+                _log(f"[he-poll] Waiting for sessions to appear for: {missing_tcs}")
+            elif not pending:
+                _log(f"[he-poll] All {len(tc_internal_ids)} TC(s) in final state after {elapsed}s")
                 return "completed"
         else:
             _log(f"[he-poll] No sessions yet (elapsed={elapsed}s) — waiting...")
