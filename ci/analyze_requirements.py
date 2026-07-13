@@ -189,20 +189,21 @@ def main():
         print(f"[analyze] Using existing {OUTPUT_FILE.name} (pass --force to re-analyse)")
         return
 
-    # Auto-detect provider from available API keys
+    # Provider selection: LLM_PROVIDER env var wins; falls back to whichever key is set
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
     cursor_key    = os.environ.get("CURSOR_API_KEY", "")
+    llm_provider  = os.environ.get("LLM_PROVIDER", "").lower()
 
-    if anthropic_key:
-        provider = "Claude"
-        print(f"[analyze] Found requirements text ({len(raw_text)} chars) — extracting ACs with Claude")
-        base_url, acs = extract_acs_with_claude(raw_text)
-    elif cursor_key:
+    if llm_provider == "cursor" or (not llm_provider and cursor_key and not anthropic_key):
         provider = "Cursor"
         print(f"[analyze] Found requirements text ({len(raw_text)} chars) — extracting ACs with Cursor")
         base_url, acs = extract_acs_with_cursor(raw_text)
+    elif llm_provider in ("anthropic", "claude") or (not llm_provider and anthropic_key):
+        provider = "Claude"
+        print(f"[analyze] Found requirements text ({len(raw_text)} chars) — extracting ACs with Claude")
+        base_url, acs = extract_acs_with_claude(raw_text)
     else:
-        print("[analyze] ERROR: No API key found. Set ANTHROPIC_API_KEY or CURSOR_API_KEY", file=sys.stderr)
+        print("[analyze] ERROR: Set LLM_PROVIDER=cursor|anthropic and the matching API key", file=sys.stderr)
         sys.exit(1)
 
     output = {"base_url": base_url, "acceptance_criteria": acs}

@@ -264,6 +264,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CURSOR_API_KEY:    ${{ secrets.CURSOR_API_KEY }}
+          LLM_PROVIDER:      cursor
         run: python3 -u ci/analyze_requirements.py
 
       - name: "Step 2 — Generate kane-cli objectives (Claude or Cursor)"
@@ -271,6 +272,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CURSOR_API_KEY:    ${{ secrets.CURSOR_API_KEY }}
+          LLM_PROVIDER:      cursor
         run: python3 -u ci/generate_objectives.py
 
       - name: "Step 3 — Flow 2 pipeline (KaneAI → TM API → HyperExecute)"
