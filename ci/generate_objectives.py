@@ -26,6 +26,7 @@ PROJECT_ROOT    = Path(__file__).parent.parent
 ANALYZED_FILE   = PROJECT_ROOT / "requirements" / "analyzed_requirements.json"
 OUTPUT_FILE     = Path(__file__).parent / "objectives.json"
 MODEL           = "claude-sonnet-4-6"
+CURSOR_MODEL    = "composer-2.5"
 
 OBJECTIVES_PROMPT = """\
 You are a QA engineer writing test objectives for a browser automation tool called KaneAI.
@@ -116,18 +117,6 @@ def main():
     username = username or "standard_user"
     password = password or "secret_sauce"
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        print("ERROR: ANTHROPIC_API_KEY not set", file=sys.stderr)
-        sys.exit(1)
-
-    try:
-        import anthropic
-    except ImportError:
-        print("ERROR: anthropic package not installed. Run: pip install anthropic", file=sys.stderr)
-        sys.exit(1)
-
-    client = anthropic.Anthropic(api_key=api_key)
     prompt = OBJECTIVES_PROMPT.format(
         base_url=base_url,
         username=username,
@@ -141,17 +130,40 @@ def main():
     HASH_FILE = OUTPUT_FILE.parent / ".objectives_hash"
     cached = HASH_FILE.read_text().strip() if HASH_FILE.exists() else ""
     if ac_hash == cached and OUTPUT_FILE.exists() and "--force" not in sys.argv:
-        print(f"[objectives] ACs unchanged (hash={ac_hash}) — skipping Claude generation")
+        print(f"[objectives] ACs unchanged — skipping generation")
         print(f"[objectives] Using existing {OUTPUT_FILE.name} (pass --force to regenerate)")
         return
 
-    print(f"[objectives] Generating objectives for {len(acs)} ACs with Claude ({MODEL})...")
-    resp = client.messages.create(
-        model=MODEL,
-        max_tokens=2048,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    raw = resp.content[0].text.strip()
+    # Auto-detect provider from available API keys
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    cursor_key    = os.environ.get("CURSOR_API_KEY", "")
+
+    if anthropic_key:
+        provider = "Claude"
+        print(f"[objectives] Generating {len(acs)} objectives with Claude ({MODEL})...")
+        try:
+            import anthropic
+        except ImportError:
+            print("ERROR: anthropic package not installed. Run: pip install anthropic", file=sys.stderr)
+            sys.exit(1)
+        client = anthropic.Anthropic(api_key=anthropic_key)
+        resp = client.messages.create(model=MODEL, max_tokens=2048,
+                                      messages=[{"role": "user", "content": prompt}])
+        raw = resp.content[0].text.strip()
+    elif cursor_key:
+        provider = "Cursor"
+        print(f"[objectives] Generating {len(acs)} objectives with Cursor ({CURSOR_MODEL})...")
+        try:
+            from cursor_sdk import Agent, LocalAgentOptions
+        except ImportError:
+            print("ERROR: cursor-sdk not installed. Run: pip install cursor-sdk", file=sys.stderr)
+            sys.exit(1)
+        with Agent.create(model=CURSOR_MODEL, api_key=cursor_key,
+                          local=LocalAgentOptions(cwd=str(PROJECT_ROOT))) as agent:
+            raw = agent.send(prompt).text().strip()
+    else:
+        print("ERROR: No API key found. Set ANTHROPIC_API_KEY or CURSOR_API_KEY", file=sys.stderr)
+        sys.exit(1)
 
     # Strip markdown fences if present
     if raw.startswith("```"):
@@ -161,10 +173,10 @@ def main():
     try:
         objectives = json.loads(raw)
     except json.JSONDecodeError as e:
-        print(f"ERROR: Claude returned invalid JSON: {e}\n{raw[:400]}", file=sys.stderr)
+        print(f"ERROR: {provider} returned invalid JSON: {e}\n{raw[:400]}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"\n[objectives] Generated {len(objectives)} objectives:")
+    print(f"\n[objectives] [{provider}] Generated {len(objectives)} objectives:")
     for o in objectives:
         print(f"  {o['id']}: {o['objective']}")
 
@@ -175,7 +187,7 @@ def main():
 
     OUTPUT_FILE.write_text(json.dumps(objectives, indent=2))
     HASH_FILE.write_text(ac_hash)
-    print(f"\n[objectives] Written to {OUTPUT_FILE.name}")
+    print(f"\n[objectives] [{provider}] Written to {OUTPUT_FILE.name}")
 
 
 if __name__ == "__main__":

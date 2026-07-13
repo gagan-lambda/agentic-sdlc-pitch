@@ -29,6 +29,7 @@ REQUIREMENTS_DIR = PROJECT_ROOT / "requirements"
 OUTPUT_FILE = REQUIREMENTS_DIR / "analyzed_requirements.json"
 
 MODEL = "claude-sonnet-4-6"
+CURSOR_MODEL = "composer-2.5"
 
 EXTRACT_PROMPT = """\
 You are a requirements analyst. Extract ALL acceptance criteria from the requirements text below.
@@ -87,7 +88,29 @@ def _load_requirements_text() -> str:
     return "\n\n".join(texts)
 
 
-def extract_acs_with_claude(raw_text: str) -> list:
+def _parse_ac_response(raw_json: str, provider: str):
+    """Parse JSON response from any LLM provider into (base_url, acs)."""
+    # Strip markdown code fences if present
+    if raw_json.startswith("```"):
+        lines = raw_json.splitlines()
+        raw_json = "\n".join(lines[1:-1] if lines[-1].startswith("```") else lines[1:])
+
+    try:
+        parsed = json.loads(raw_json)
+    except json.JSONDecodeError as e:
+        print(f"[analyze] ERROR: {provider} returned invalid JSON: {e}", file=sys.stderr)
+        print(f"Raw response:\n{raw_json[:500]}", file=sys.stderr)
+        sys.exit(1)
+
+    if isinstance(parsed, dict):
+        return parsed.get("base_url", ""), parsed.get("acceptance_criteria", [])
+    if isinstance(parsed, list):
+        return "", parsed
+    print(f"[analyze] ERROR: unexpected {provider} response format", file=sys.stderr)
+    sys.exit(1)
+
+
+def extract_acs_with_claude(raw_text: str):
     """Call Claude to extract structured ACs from any requirements text."""
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not api_key:
@@ -110,27 +133,35 @@ def extract_acs_with_claude(raw_text: str) -> list:
         max_tokens=4096,
         messages=[{"role": "user", "content": prompt}],
     )
-    raw_json = resp.content[0].text.strip()
+    return _parse_ac_response(resp.content[0].text.strip(), "Claude")
 
-    # Strip markdown code fences if present
-    if raw_json.startswith("```"):
-        lines = raw_json.splitlines()
-        raw_json = "\n".join(lines[1:-1] if lines[-1] == "```" else lines[1:])
 
-    try:
-        parsed = json.loads(raw_json)
-    except json.JSONDecodeError as e:
-        print(f"[analyze] ERROR: Claude returned invalid JSON: {e}", file=sys.stderr)
-        print(f"Raw response:\n{raw_json[:500]}", file=sys.stderr)
+def extract_acs_with_cursor(raw_text: str):
+    """Call Cursor SDK to extract structured ACs from any requirements text."""
+    api_key = os.environ.get("CURSOR_API_KEY", "")
+    if not api_key:
+        print("[analyze] ERROR: CURSOR_API_KEY not set", file=sys.stderr)
         sys.exit(1)
 
-    # Support both new wrapper format and legacy array
-    if isinstance(parsed, dict):
-        return parsed.get("base_url", ""), parsed.get("acceptance_criteria", [])
-    if isinstance(parsed, list):
-        return "", parsed
-    print("[analyze] ERROR: unexpected Claude response format", file=sys.stderr)
-    sys.exit(1)
+    try:
+        from cursor_sdk import Agent, LocalAgentOptions
+    except ImportError:
+        print("[analyze] ERROR: cursor-sdk not installed. Run: pip install cursor-sdk",
+              file=sys.stderr)
+        sys.exit(1)
+
+    prompt = EXTRACT_PROMPT.format(requirements_text=raw_text)
+    print(f"[analyze] Sending {len(raw_text)} chars to Cursor ({CURSOR_MODEL})...")
+
+    with Agent.create(
+        model=CURSOR_MODEL,
+        api_key=api_key,
+        local=LocalAgentOptions(cwd=str(PROJECT_ROOT)),
+    ) as agent:
+        run = agent.send(prompt)
+        raw_json = run.text().strip()
+
+    return _parse_ac_response(raw_json, "Cursor")
 
 
 def main():
@@ -158,14 +189,26 @@ def main():
         print(f"[analyze] Using existing {OUTPUT_FILE.name} (pass --force to re-analyse)")
         return
 
-    print(f"[analyze] Found requirements text ({len(raw_text)} chars) — extracting ACs with Claude")
+    # Auto-detect provider from available API keys
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    cursor_key    = os.environ.get("CURSOR_API_KEY", "")
 
-    base_url, acs = extract_acs_with_claude(raw_text)
+    if anthropic_key:
+        provider = "Claude"
+        print(f"[analyze] Found requirements text ({len(raw_text)} chars) — extracting ACs with Claude")
+        base_url, acs = extract_acs_with_claude(raw_text)
+    elif cursor_key:
+        provider = "Cursor"
+        print(f"[analyze] Found requirements text ({len(raw_text)} chars) — extracting ACs with Cursor")
+        base_url, acs = extract_acs_with_cursor(raw_text)
+    else:
+        print("[analyze] ERROR: No API key found. Set ANTHROPIC_API_KEY or CURSOR_API_KEY", file=sys.stderr)
+        sys.exit(1)
 
     output = {"base_url": base_url, "acceptance_criteria": acs}
     OUTPUT_FILE.write_text(json.dumps(output, indent=2), encoding="utf-8")
     CACHE_FILE.write_text(content_hash)
-    print(f"[analyze] Extracted {len(acs)} acceptance criteria → {OUTPUT_FILE.relative_to(PROJECT_ROOT)}")
+    print(f"[analyze] [{provider}] Extracted {len(acs)} acceptance criteria → {OUTPUT_FILE.relative_to(PROJECT_ROOT)}")
     if base_url:
         print(f"[analyze] App URL: {base_url}")
 

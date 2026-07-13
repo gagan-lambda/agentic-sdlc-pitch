@@ -259,16 +259,18 @@ jobs:
           fi
           head -20 "$FILENAME"
 
-      - name: "Step 1 — Analyze requirements (Claude)"
+      - name: "Step 1 — Analyze requirements (Claude or Cursor)"
         if: ${{ github.event_name == 'workflow_dispatch' && (inputs.from_step == '' || inputs.from_step <= '1') }}
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CURSOR_API_KEY:    ${{ secrets.CURSOR_API_KEY }}
         run: python3 -u ci/analyze_requirements.py
 
-      - name: "Step 2 — Generate kane-cli objectives (Claude)"
+      - name: "Step 2 — Generate kane-cli objectives (Claude or Cursor)"
         if: ${{ github.event_name == 'workflow_dispatch' && (inputs.from_step == '' || inputs.from_step <= '2') }}
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CURSOR_API_KEY:    ${{ secrets.CURSOR_API_KEY }}
         run: python3 -u ci/generate_objectives.py
 
       - name: "Step 3 — Flow 2 pipeline (KaneAI → TM API → HyperExecute)"
