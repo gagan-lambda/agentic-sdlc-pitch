@@ -3,167 +3,175 @@
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "description": "Users must authenticate with valid credentials before they can access any application page.",
+      "description": "A user can log in to the application using valid credentials (username: standard_user, password: secret_sauce).",
       "kane_steps": [
-        "Open the application base URL without being logged in",
-        "Attempt to access a protected page directly",
-        "Verify the user is prompted to log in or blocked from viewing the page"
+        "Navigate to https://www.saucedemo.com/",
+        "Enter username 'standard_user' and password 'secret_sauce'",
+        "Click the Login button",
+        "Verify the user is logged in and leaves the login page"
       ],
-      "kane_one_liner": "Login required to access pages"
+      "kane_one_liner": "User logs in with valid credentials"
     },
     {
       "id": "AC-002",
-      "description": "After logging in with valid credentials, the user is redirected to the product inventory page.",
+      "description": "Unauthenticated users cannot access application pages without first logging in.",
       "kane_steps": [
-        "Navigate to the login page",
-        "Enter username standard_user and password secret_sauce",
-        "Submit the login form",
-        "Verify the user lands on the product inventory page"
+        "Open a new browser session without logging in",
+        "Attempt to navigate directly to a protected page (e.g., /inventory.html)",
+        "Verify access is denied or the user is redirected to the login page"
+      ],
+      "kane_one_liner": "Unauthenticated users blocked from pages"
+    },
+    {
+      "id": "AC-003",
+      "description": "After a successful login, the user is redirected to the product inventory page.",
+      "kane_steps": [
+        "Navigate to https://www.saucedemo.com/",
+        "Log in with valid credentials",
+        "Verify the browser URL indicates the inventory page",
+        "Verify the product inventory content is displayed"
       ],
       "kane_one_liner": "Successful login redirects to inventory"
     },
     {
-      "id": "AC-003",
-      "description": "The product inventory page displays product tiles that include each product's name, image, and price.",
+      "id": "AC-004",
+      "description": "The inventory page displays product tiles that each show a product name, image, and price.",
       "kane_steps": [
-        "Log in with valid credentials",
-        "View the product inventory page",
+        "Log in and navigate to the inventory page",
+        "Verify multiple product tiles are visible",
         "Verify each visible product tile shows a name, image, and price"
       ],
       "kane_one_liner": "Inventory tiles show name image price"
     },
     {
-      "id": "AC-004",
-      "description": "Users can open a product's detail page by clicking its name or image on the inventory page.",
-      "kane_steps": [
-        "Log in and open the product inventory page",
-        "Click a product name on a product tile",
-        "Verify the product detail page opens for that product",
-        "Return to inventory and click the same product's image",
-        "Verify the product detail page opens again"
-      ],
-      "kane_one_liner": "Click name or image opens details"
-    },
-    {
       "id": "AC-005",
-      "description": "The product detail page displays the product name, description, price, and an Add to cart button.",
+      "description": "A user can open a product detail page by clicking a product name or image on the inventory page.",
       "kane_steps": [
-        "Log in and open a product detail page",
-        "Verify the product name is displayed",
-        "Verify the description, price, and Add to cart button are displayed"
+        "Log in and navigate to the inventory page",
+        "Click a product name or image on a product tile",
+        "Verify the product detail page opens for the selected product"
       ],
-      "kane_one_liner": "Detail page shows full product info"
+      "kane_one_liner": "Click product opens detail page"
     },
     {
       "id": "AC-006",
-      "description": "Users can add a product to the cart from the inventory page using the Add to cart button.",
+      "description": "The product detail page displays the product name, description, price, and an Add to cart button.",
       "kane_steps": [
-        "Log in and open the product inventory page",
+        "Log in and open a product detail page from the inventory",
+        "Verify the product name is displayed",
+        "Verify the description, price, and Add to cart button are displayed"
+      ],
+      "kane_one_liner": "Detail page shows product information"
+    },
+    {
+      "id": "AC-007",
+      "description": "A user can add a product to the cart from the inventory page using the Add to cart button.",
+      "kane_steps": [
+        "Log in and navigate to the inventory page",
         "Click Add to cart on a product that is not yet in the cart",
         "Verify the product is added to the cart"
       ],
       "kane_one_liner": "Add product to cart from inventory"
     },
     {
-      "id": "AC-007",
-      "description": "After adding a product from the inventory page, the Add to cart button label changes to Remove.",
+      "id": "AC-008",
+      "description": "After adding a product to the cart from the inventory page, the Add to cart button label changes to Remove.",
       "kane_steps": [
-        "Log in and open the product inventory page",
+        "Log in and navigate to the inventory page",
         "Click Add to cart on a product",
         "Verify the button label on that product changes to Remove"
       ],
       "kane_one_liner": "Add to cart button becomes Remove"
     },
     {
-      "id": "AC-008",
-      "description": "After adding a product to the cart, the cart badge in the top navigation updates to show the current number of items in the cart.",
-      "kane_steps": [
-        "Log in and note the cart badge count",
-        "Add a product to the cart from the inventory page",
-        "Verify the cart badge count increases to reflect the number of items in the cart"
-      ],
-      "kane_one_liner": "Cart badge reflects item count"
-    },
-    {
       "id": "AC-009",
-      "description": "Users can remove a product from the cart on the inventory page by clicking the Remove button.",
+      "description": "After adding a product to the cart, the cart badge in the top navigation updates to show the number of items in the cart.",
       "kane_steps": [
-        "Log in and add a product to the cart from the inventory page",
-        "Click Remove on that product",
-        "Verify the product is removed from the cart"
+        "Log in and note the current cart badge count",
+        "Add a product to the cart from the inventory page",
+        "Verify the cart badge count increases by one and reflects the total number of items"
       ],
-      "kane_one_liner": "Remove product from cart on inventory"
+      "kane_one_liner": "Cart badge shows item count"
     },
     {
       "id": "AC-010",
-      "description": "After removing a product on the inventory page, the button label changes back to Add to cart.",
+      "description": "A user can remove a product from the cart on the inventory page by clicking the Remove button.",
       "kane_steps": [
         "Log in and add a product to the cart from the inventory page",
-        "Click Remove on that product",
+        "Click the Remove button on that product",
+        "Verify the product is removed from the cart"
+      ],
+      "kane_one_liner": "Remove product from cart inventory"
+    },
+    {
+      "id": "AC-011",
+      "description": "After removing a product from the cart on the inventory page, the Remove button label changes back to Add to cart.",
+      "kane_steps": [
+        "Log in and add a product to the cart from the inventory page",
+        "Click the Remove button on that product",
         "Verify the button label changes back to Add to cart"
       ],
       "kane_one_liner": "Remove button reverts to Add"
     },
     {
-      "id": "AC-011",
-      "description": "Users can navigate to the cart page at /cart.html.",
+      "id": "AC-012",
+      "description": "A user can navigate to the cart page at /cart.html.",
       "kane_steps": [
         "Log in to the application",
-        "Navigate to /cart.html",
+        "Navigate to /cart.html or click the cart icon in the top navigation",
         "Verify the cart page loads successfully"
       ],
-      "kane_one_liner": "User can open cart page"
-    },
-    {
-      "id": "AC-012",
-      "description": "The cart page lists all added items with their name, quantity, and price.",
-      "kane_steps": [
-        "Log in and add one or more products to the cart",
-        "Open the cart page",
-        "Verify each added item is listed with its name, quantity, and price"
-      ],
-      "kane_one_liner": "Cart lists items with details"
+      "kane_one_liner": "User can navigate to cart page"
     },
     {
       "id": "AC-013",
-      "description": "Users can sort products using the sort dropdown in the top right of the inventory page.",
+      "description": "The cart page lists all added items with their name, quantity, and price.",
       "kane_steps": [
-        "Log in and open the product inventory page",
-        "Locate the sort dropdown in the top right",
-        "Select a sort option",
-        "Verify the product list order updates accordingly"
+        "Log in and add one or more products to the cart",
+        "Navigate to the cart page at /cart.html",
+        "Verify each added item is listed with its name, quantity, and price"
       ],
-      "kane_one_liner": "Inventory products can be sorted"
+      "kane_one_liner": "Cart page lists item details"
     },
     {
       "id": "AC-014",
-      "description": "The sort dropdown provides all four sort options: Name (A to Z), Name (Z to A), Price (low to high), and Price (high to low).",
+      "description": "The inventory page provides a sort dropdown in the top right that allows users to sort products.",
       "kane_steps": [
-        "Log in and open the product inventory page",
-        "Open the sort dropdown",
-        "Verify Name (A to Z), Name (Z to A), Price (low to high), and Price (high to low) are available"
+        "Log in and navigate to the inventory page",
+        "Locate the sort dropdown in the top right of the page",
+        "Verify the sort dropdown is visible and can be opened"
       ],
-      "kane_one_liner": "All four sort options available"
+      "kane_one_liner": "Inventory page has sort dropdown"
     },
     {
       "id": "AC-015",
-      "description": "Selecting Price (low to high) displays the cheapest product first, with Sauce Labs Onesie at $7.99 shown first.",
+      "description": "The sort dropdown offers four options: Name (A to Z), Name (Z to A), Price (low to high), and Price (high to low).",
       "kane_steps": [
-        "Log in and open the product inventory page",
-        "Select Price (low to high) from the sort dropdown",
-        "Verify Sauce Labs Onesie at $7.99 is the first product shown"
+        "Log in and navigate to the inventory page",
+        "Open the sort dropdown",
+        "Verify all four sort options are available"
       ],
-      "kane_one_liner": "Low to high sorts Onesie first"
+      "kane_one_liner": "Sort dropdown offers four options"
     },
     {
       "id": "AC-016",
-      "description": "Selecting Name (A to Z) displays Sauce Labs Backpack as the first product in the list.",
+      "description": "Selecting Price (low to high) sorts products so the cheapest product (Sauce Labs Onesie at $7.99) appears first.",
       "kane_steps": [
-        "Log in and open the product inventory page",
-        "Select Name (A to Z) from the sort dropdown",
-        "Verify Sauce Labs Backpack is the first product shown"
+        "Log in and navigate to the inventory page",
+        "Select Price (low to high) from the sort dropdown",
+        "Verify Sauce Labs Onesie at $7.99 is the first product listed"
       ],
-      "kane_one_liner": "A to Z sorts Backpack first"
+      "kane_one_liner": "Price low to high sorts correctly"
+    },
+    {
+      "id": "AC-017",
+      "description": "Selecting Name (A to Z) sorts products so Sauce Labs Backpack appears first.",
+      "kane_steps": [
+        "Log in and navigate to the inventory page",
+        "Select Name (A to Z) from the sort dropdown",
+        "Verify Sauce Labs Backpack is the first product listed"
+      ],
+      "kane_one_liner": "Name A to Z sorts correctly"
     }
   ]
 }
