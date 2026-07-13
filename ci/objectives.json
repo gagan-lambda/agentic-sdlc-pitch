@@ -17,8 +17,8 @@
     "id": "SC-003",
     "ac_id": "AC-009",
     "name": "SC-003: Add to cart badge",
-    "objective": "Login to https://www.saucedemo.com/ as standard_user with password secret_sauce, click the Add to cart button for Sauce Labs Backpack, and verify the shopping cart badge displays 1.",
-    "healed_from": "Login to https://www.saucedemo.com/ as standard_user with password secret_sauce, click Add to cart for Sauce Labs Backpack, and verify the cart badge shows 1."
+    "objective": "Login to https://www.saucedemo.com/ as standard_user with password secret_sauce, click the Add to cart button for Sauce Labs Backpack, and verify the cart badge shows 1.",
+    "healed_from": "Login to https://www.saucedemo.com/ as standard_user with password secret_sauce, click the Add to cart button for Sauce Labs Backpack, and verify the shopping cart badge displays 1."
   },
   {
     "id": "SC-004",
